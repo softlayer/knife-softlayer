@@ -11,6 +11,8 @@ class Chef
   class Knife
     module SoftlayerBase
 
+      USER_AGENT = "Chef Knife Softlayer Plugin #{::Knife::Softlayer::VERSION}"
+
       # :nodoc:
       def self.included(includer)
         includer.class_eval do
@@ -50,7 +52,8 @@ class Chef
         SoftLayer::Service.new(
             SoftlayerBase.send(service),
             :username => Chef::Config[:knife][:softlayer_username],
-            :api_key => Chef::Config[:knife][:softlayer_api_key]
+            :api_key => Chef::Config[:knife][:softlayer_api_key],
+            :user_agent => USER_AGENT
         )
       end
 
@@ -110,7 +113,8 @@ class Chef
         SoftLayer::Service.new(
             SoftlayerBase.send(:package),
             :username => Chef::Config[:knife][:softlayer_username],
-            :api_key => Chef::Config[:knife][:softlayer_api_key]
+            :api_key => Chef::Config[:knife][:softlayer_api_key],
+            :user_agent => USER_AGENT
         ).object_with_id(non_server_package_id).object_mask('isRequired', 'itemCategory').getConfiguration.map do |item|
           item['itemCategory']['id'] if item['itemCategory']['categoryCode'] == 'global_ipv4'
         end.compact.first
@@ -123,7 +127,8 @@ class Chef
         SoftLayer::Service.new(
             SoftlayerBase.send(:package),
             :username => Chef::Config[:knife][:softlayer_username],
-            :api_key => Chef::Config[:knife][:softlayer_api_key]
+            :api_key => Chef::Config[:knife][:softlayer_api_key],
+            :user_agent => USER_AGENT
         ).object_with_id(non_server_package_id).object_mask('id', 'item.description', 'categories.id').getItemPrices.map do |item|
           item['id'] if item['categories'][0]['id'] == SoftlayerBase.global_ipv4_cat_code
         end.compact.first
