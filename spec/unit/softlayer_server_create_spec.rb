@@ -95,7 +95,7 @@ describe Chef::Knife::SoftlayerServerCreate do
       @knife_softlayer_create.cci.should_not == nil
     end
 
-    it "set ssh_user value by using -x option" do
+    it "sets ssh_user value by using -x option" do
       # default value of config[:ssh_user] is root
       @knife_softlayer_create.config[:ssh_user] = "tim-eah!"
 
@@ -104,7 +104,7 @@ describe Chef::Knife::SoftlayerServerCreate do
       @knife_softlayer_create.cci.should_not == nil
     end
 
-    it "set ssh_password value by using -P option" do
+    it "sets ssh_password value by using -P option" do
       # default value of config[:ssh_password] is nil
       @knife_softlayer_create.config[:ssh_password] = "passw0rd"
 
@@ -113,7 +113,7 @@ describe Chef::Knife::SoftlayerServerCreate do
       @knife_softlayer_create.cci.should_not == nil
     end
 
-    it "set ssh_port value by using -p option" do
+    it "sets ssh_port value by using -p option" do
       # default value of config[:ssh_port] is 22
       @knife_softlayer_create.config[:ssh_port] = "86"
 
@@ -122,7 +122,7 @@ describe Chef::Knife::SoftlayerServerCreate do
       @knife_softlayer_create.cci.should_not == nil
     end
 
-    it "set identity_file value by using -i option for ssh bootstrap protocol or linux image" do
+    it "sets identity_file value by using -i option for ssh bootstrap protocol or linux image" do
       # default value of config[:identity_file] is nil
       @knife_softlayer_create.config[:identity_file] = "~/.ssh/mah_key_file.pem"
 
