@@ -16,6 +16,22 @@ Or install it yourself as:
 
     $ gem install knife-softlayer
 
+## Configuration
+Add your SoftLayer username and API key to your `knife.rb` file.
+
+```ruby
+log_level                :info
+log_location             STDOUT
+node_name                'node'
+client_key               '/path/to/key.pem'
+validation_client_name   'some-validator'
+validation_key           '/path/to/validator.pem'
+chef_server_url          'https://example.com/organizations/org'
+syntax_check_cache_path  '/path/to/syntax_check_cache'
+knife[:softlayer_username] = "<SOFTLAYER USERNAME>"
+knife[:softlayer_api_key]  = "<SOFTLAYER API KEY>"
+```
+
 ## Usage
 
 See `knife softlayer --help` for more information.
