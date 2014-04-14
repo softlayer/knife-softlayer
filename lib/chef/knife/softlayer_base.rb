@@ -6,6 +6,7 @@
 #
 
 require 'chef/knife'
+require 'knife-softlayer/version'
 
 class Chef
   class Knife
