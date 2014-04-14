@@ -12,7 +12,7 @@ class Chef
   class Knife
     module SoftlayerBase
 
-      USER_AGENT = "Chef Knife Softlayer Plugin #{::Knife::Softlayer::VERSION}"
+      USER_AGENT = "Chef Knife Softlayer Plugin #{::Knife::Softlayer::VERSION}" unless defined? USER_AGENT
 
       # :nodoc:
       def self.included(includer)
