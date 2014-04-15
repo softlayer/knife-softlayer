@@ -68,6 +68,7 @@ class Chef
       option :bill_monthly,
         :long => '--bill-monthly',
         :description => 'Flag to bill monthly instead of hourly, minimum charge of one month.',
+        :boolean => true,
         :default => false
 
       option :single_tenant,
@@ -241,7 +242,7 @@ class Chef
         @template['domain'] = config[:domain]
         @template['dedicatedAccountHostOnlyFlag'] = config[:single_tenant]
         @template['operatingSystemReferenceCode'] = config[:os_code]
-        @template['hourlyBillingFlag'] = config[:bill_monthly]
+        @template['hourlyBillingFlag'] = !config[:bill_monthly]
         @template['networkComponents'] = [{ 'maxSpeed' => config[:nic]}]
 
         @template['datacenter'] = { 'name' => config[:datacenter] } if config[:datacenter]
