@@ -1,0 +1,29 @@
+language: ruby
+
+script: bundle exec rspec spec
+
+matrix:
+  fast_finish: true
+  include:
+    - rvm: 1.9.3
+      gemfile: Gemfile
+    - rvm: 2.0.0
+      gemfile: Gemfile
+    - rvm: 2.1.0
+      gemfile: Gemfile
+    - rvm: 2.1.1
+      gemfile: Gemfile
+      env: COVERAGE=true
+    - rvm: jruby-19mode
+      gemfile: Gemfile
+    - rvm: jruby-head
+      gemfile: Gemfile
+
+  allow_failures:
+    - rvm: jruby-head
+
+notifications:
+  email: true
+
+before_install:
+  - gem update --system #  todo: workaround for https://github.com/rubygems/rubygems/pull/763
