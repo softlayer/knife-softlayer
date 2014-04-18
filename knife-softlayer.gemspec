@@ -15,7 +15,7 @@ Gem::Specification.new do |spec|
   spec.version       = Knife::Softlayer::VERSION
   spec.authors       = ["Matt Eldridge"]
   spec.email         = ["matt.eldridge@us.ibm.com"]
-  spec.summary       = %q{SoftLayer CCI support for Chef's knife utility.}
+  spec.summary       = %q{SoftLayer VM support for Chef's knife utility.}
   spec.description   = spec.summary
   spec.homepage      = "https://github.com/SoftLayer/knife-softlayer"
   spec.license       = "Apache 2.0"

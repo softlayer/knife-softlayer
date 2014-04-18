@@ -28,7 +28,7 @@ class Chef
       option :ip_address,
         :long => "--ip-address ADDRESS",
         :short => "-I",
-        :description => "Find the CCI and node to destroy by its public IP address."
+        :description => "Find the VM and node to destroy by its public IP address."
 
       ##
       # Run the procedure to destroy a SoftLayer VM and clean up its Chef node and client.
@@ -37,7 +37,7 @@ class Chef
 
         $stdout.sync = true
 
-        puts ui.color("Decommissioning SoftLayer CCI, this may take a few minutes.", :green)
+        puts ui.color("Decommissioning SoftLayer VM, this may take a few minutes.", :green)
 
         @chef = Chef::Search::Query.new
 
@@ -58,7 +58,7 @@ class Chef
 
 
         @node.nil? and raise "#{ui.color('Chef node not found!', :red)}"
-        @cci.nil? and raise "#{ui.color('CCI instance with IP: ' + config[:ip_address] +' not found!', :red)}"
+        @cci.nil? and raise "#{ui.color('VM instance with IP: ' + config[:ip_address] +' not found!', :red)}"
 
 
         begin
@@ -82,9 +82,9 @@ class Chef
 
           begin
             connection.object_with_id(@cci['id']).deleteObject
-            puts ui.color("SoftLayer CCI successfully deleted. You are no longer being billed for this instance.", :green)
+            puts ui.color("SoftLayer VM successfully deleted. You are no longer being billed for this instance.", :green)
           rescue Exception => e
-            err_msg ui.color("ERROR DELETING SOFTLAYER CCI. IT'S POSSIBLE YOU ARE STILL BEING BILLED FOR THIS INSTANCE.  PLEASE CONTACT SUPPORT FOR FURTHER ASSISTANCE", :red)
+            err_msg ui.color("ERROR DELETING SOFTLAYER VM. IT'S POSSIBLE YOU ARE STILL BEING BILLED FOR THIS INSTANCE.  PLEASE CONTACT SUPPORT FOR FURTHER ASSISTANCE", :red)
             err_msg ui.color(e.message, :yellow)
             err_msg ui.color(e.backtrace, :yellow)
           end
