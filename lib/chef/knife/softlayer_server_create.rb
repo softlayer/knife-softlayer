@@ -73,19 +73,19 @@ class Chef
 
       option :single_tenant,
         :long => '--single-tenant',
-        :description => 'Create a CCI VM with a dedicated physical host.',
+        :description => 'Create a VM with a dedicated physical host.',
         :boolean => true,
         :default => false
 
-      option :san_storage,
-        :long => '--san-storage',
-        :description => 'Create a CCI VM with SAN based block storage [disk].',
+      option :local_storage,
+        :long => '--local-storage',
+        :description => 'Force local block storage instead of SAN storage.',
         :boolean => true,
         :default => false
 
       option :datacenter,
         :long => '--datacenter VALUE',
-        :description => 'Create a CCI VI in a particular datacenter.'
+        :description => 'Create a VM in a particular datacenter.'
 
       option :tags,
              :short => "-T T=V[,T=V,...]",
@@ -230,7 +230,7 @@ class Chef
           @template = {}
           @template['startCpus'] = config[:cores]
           @template['maxMemory'] = config[:ram]
-          @template['localDiskFlag'] = !config[:san_storage]
+          @template['localDiskFlag'] = config[:local_storage]
           @template['blockDevices'] = config[:block_storage].split(',').map do |i|
             dev, cap = i.split(':')
             {'device' => dev, 'diskImage' => {'capacity' => cap } }
@@ -249,7 +249,7 @@ class Chef
 
         @response = connection.createObject(@template)
 
-        puts ui.color("Launching SoftLayer CCI, this may take a few minutes.", :green)
+        puts ui.color("Launching SoftLayer VM, this may take a few minutes.", :green)
 
         begin
           @cci = connection.object_mask('mask.operatingSystem.passwords.password').object_with_id(@response['id']).getObject
