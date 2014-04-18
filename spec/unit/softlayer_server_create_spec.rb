@@ -90,7 +90,7 @@ describe Chef::Knife::SoftlayerServerCreate do
       @bootstrap.config[:distro].should == 'chef-full'
     end
 
-    it "creates an CCI instance and bootstraps it" do
+    it "creates an VM instance and bootstraps it" do
       @knife_softlayer_create.run
       @knife_softlayer_create.cci.should_not == nil
     end

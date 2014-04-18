@@ -1,0 +1,22 @@
+language: ruby
+
+script: bundle exec rspec spec
+
+matrix:
+  fast_finish: true
+  include:
+    - rvm: 1.9.3
+      gemfile: Gemfile
+    - rvm: 2.0.0
+      gemfile: Gemfile
+    - rvm: 2.1.0
+      gemfile: Gemfile
+    - rvm: 2.1.1
+      gemfile: Gemfile
+      env: COVERAGE=true
+
+notifications:
+  email: matt.eldridge@us.ibm.com
+
+before_install:
+  - gem update --system #  todo: workaround for https://github.com/rubygems/rubygems/pull/763
