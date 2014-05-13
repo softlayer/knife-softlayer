@@ -1,6 +1,6 @@
 # Knife::Softlayer
 [![Gem Version](https://badge.fury.io/rb/knife-softlayer.png)](http://badge.fury.io/rb/knife-softlayer)
-[![Build Status](https://api.travis-ci.org/softlayer/knife-softlayer.svg?branch=SAN-storage)](https://travis-ci.org/softlayer/knife-softlayer)
+[![Build Status](https://api.travis-ci.org/softlayer/knife-softlayer.svg)](https://travis-ci.org/softlayer/knife-softlayer)
 [![Dependency Status](https://gemnasium.com/softlayer/knife-softlayer.svg)](https://gemnasium.com/softlayer/knife-softlayer)
 
 A knife plugin for launching and bootstrapping instances in the IBM SoftLayer cloud.
