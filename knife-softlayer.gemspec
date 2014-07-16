@@ -27,7 +27,7 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency "softlayer_api", "~> 1.0.8"
   spec.add_dependency "knife-windows", "~> 0.5.12"
-  spec.add_dependency "net-ssh", "~> 2.8.0"
+  spec.add_dependency "net-ssh", "> 2.8.0"
 
   spec.add_development_dependency "mixlib-config", "~>2.0"
   spec.add_development_dependency "chef", ">=0.10.10"
