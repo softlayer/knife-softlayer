@@ -7,6 +7,7 @@
 
 require 'chef/knife/softlayer_base'
 require 'chef/knife/flavor/base'
+require 'json'
 
 class Chef
   class Knife
@@ -24,6 +25,10 @@ class Chef
         :short => '-f FLAVOR',
         :description => 'Pre-configured packages of computing resources.  See `knife softlayer flavor list` for details.'
 
+      option :file,
+        :long => '--file FILE',
+        :description => 'A configuration file to define a SoftLayer VM.  JSON format corresponding to the SoftLayer API'
+
       option :hostname,
         :long => '--hostname VALUE',
         :short => '-H VALUE',
@@ -32,60 +37,68 @@ class Chef
       option :domain,
         :long => '--domain VALUE',
         :short => '-D VALUE',
-        :description => 'The FQDN SoftLayer will assign to the VM instance.',
-        :default => 'example.com'
+        :description => 'The FQDN SoftLayer will assign to the VM instance.'
 
       option :cores,
         :long => '--cores VALUE',
         :short => '-C VALUE',
-        :description => 'The number of virtual cores SoftLayer will assign to the VM instance.',
-        :default => 1
+        :description => 'The number of virtual cores SoftLayer will assign to the VM instance.'
 
       option :os_code,
         :long => '--os-code VALUE',
         :short => '-O VALUE',
-        :description => 'A valid SoftLayer operating system code.  See `knife softlayer flavor list --all` for a list of valid codes.',
-        :default => 'UBUNTU_LATEST'
+        :description => 'A valid SoftLayer operating system code.  See `knife softlayer flavor list --all` for a list of valid codes.  Cannot be combined with the template-guid option.'
 
       option :ram,
         :long => '--ram VALUE',
         :short => '-R VALUE',
-        :description => 'The number of virtual cores SoftLayer will assign to the VM instance.',
-        :default => 1024
+        :description => 'The number of virtual cores SoftLayer will assign to the VM instance.'
 
       option :block_storage,
         :long => '--block-storage VALUE',
         :short => '-B VALUE',
-        :description => 'The size in GB of the block storage devices (disks) for this instance. Specify 1 - 5 entries in a comma separated list following the format "dev:size".  Example: "0:25,2:500" would be a 25GB volume on device 0 (the root partition) and a 100GB volume on on device 2. [NOTE: SoftLayer VMs always reserve device 1 for a swap device.] ',
-        :default => '0:25'
+        :description => 'The size in GB of the block storage devices (disks) for this instance. Specify 1 - 5 entries in a comma separated list following the format "dev:size".  Example: "0:25,2:500" would be a 25GB volume on device 0 (the root partition) and a 100GB volume on on device 2. [NOTE: SoftLayer VMs always reserve device 1 for a swap device.] '
 
       option :nic,
         :long => '--network-interface-speed VALUE',
         :short => '-n VALUE',
-        :description => 'The maximum speed of the public NIC available to the instance.',
-        :default => 10
+        :description => 'The maximum speed of the public NIC available to the instance.'
 
       option :bill_monthly,
         :long => '--bill-monthly',
         :description => 'Flag to bill monthly instead of hourly, minimum charge of one month.',
-        :boolean => true,
-        :default => false
+        :boolean => true
 
       option :single_tenant,
         :long => '--single-tenant',
         :description => 'Create a VM with a dedicated physical host.',
-        :boolean => true,
-        :default => false
+        :boolean => true
 
       option :local_storage,
         :long => '--local-storage',
         :description => 'Force local block storage instead of SAN storage.',
-        :boolean => true,
-        :default => false
+        :boolean => true
 
       option :datacenter,
         :long => '--datacenter VALUE',
         :description => 'Create a VM in a particular datacenter.'
+        
+      option :public_vlan,
+        :long => '--public-vlan VLAN',
+        :description => 'Create a VM in a particular public vlan'
+        
+      option :private_vlan,
+        :long => '--private-vlan VLAN',
+        :description => 'Create a VM in a particular private vlan'
+        
+      option :private_network_only,
+        :long => '--private-network-only',
+        :description => 'Create a VM with a private IP only',
+        :boolean => true
+
+      option :template_guid,
+        :long => '--template-guid GUID',
+        :description => 'Create a VM from an existing image template.  Cannot be combined with the os-code option.'
 
       option :tags,
              :short => "-T T=V[,T=V,...]",
@@ -206,6 +219,12 @@ class Chef
              :long => "--new-global-ip",
              :description => "Order a new SoftLayer Global IP address and assign it to the instance."
 
+      option :use_backend_ip,
+             :long => "--use-backend-ip",
+             :description => "Use the private/backend IP during bootstrap",
+             :boolean => true,
+             :default => false
+
       option :hint,
              :long => "--hint HINT_NAME[=HINT_FILE]",
              :description => "Specify Ohai Hint to be set on the bootstrap target.  Use multiple --hint options to specify multiple hints.",
@@ -222,33 +241,55 @@ class Chef
 
         $stdout.sync = true
 
-        config[:os_code] =~ /^WIN_/ and raise SoftlayerServerCreateError, "#{ui.color("Windows VMs not currently supported.", :red)}"
+        @template = {
+          'domain' => 'example.com',
+          'startCpus' => 1,
+          'maxMemory' => 1024,
+          'operatingSystemReferenceCode' => 'UBUNTU_LATEST',
+          'blockDevices' => [{'device' => '0', 'diskImage' => {'capacity' => 25}}],
+          'hourlyBillingFlag' => true,
+          'localDiskFlag' => false
+        }
+
+        @template.merge!(JSON.parse(IO.read(config[:file]))) if config[:file]
 
         if config[:flavor]
-          @template = SoftlayerFlavorBase.load_flavor(config[:flavor])
-        else
-          @template = {}
-          @template['startCpus'] = config[:cores]
-          @template['maxMemory'] = config[:ram]
-          @template['localDiskFlag'] = config[:local_storage]
-          @template['blockDevices'] = config[:block_storage].split(',').map do |i|
-            dev, cap = i.split(':')
-            {'device' => dev, 'diskImage' => {'capacity' => cap } }
-            end
+          @template.merge!(SoftlayerFlavorBase.load_flavor(config[:flavor]))
+          @template.delete('blockDeviceTemplateGroup')
         end
 
-        @template['complexType'] = SoftlayerBase.cci
-        @template['hostname'] = config[:hostname]
-        @template['domain'] = config[:domain]
-        @template['dedicatedAccountHostOnlyFlag'] = config[:single_tenant]
-        @template['operatingSystemReferenceCode'] = config[:os_code]
-        @template['hourlyBillingFlag'] = !config[:bill_monthly]
-        @template['networkComponents'] = [{ 'maxSpeed' => config[:nic]}]
+        @cmd_line = {}
+        @cmd_line['startCpus'] = config[:cores]
+        @cmd_line['maxMemory'] = config[:ram]
+        @cmd_line['localDiskFlag'] = config[:local_storage]
+        @cmd_line['blockDevices'] = config[:block_storage].split(',').map do |i|
+          dev, cap = i.split(':')
+          {'device' => dev, 'diskImage' => {'capacity' => cap } }
+          end unless config[:block_storage].nil?
+        @cmd_line['complexType'] = SoftlayerBase.cci
+        @cmd_line['hostname'] = config[:hostname]
+        @cmd_line['domain'] = config[:domain]
+        @cmd_line['dedicatedAccountHostOnlyFlag'] = config[:single_tenant] unless config[:single_tenant].nil?
+        @cmd_line['operatingSystemReferenceCode'] = config[:os_code]
+        @cmd_line['hourlyBillingFlag'] = !config[:bill_monthly] unless config[:bill_monthly].nil?
+        @cmd_line['networkComponents'] = [{ 'maxSpeed' => config[:nic]}] unless config[:nic].nil?
+        @cmd_line['privateNetworkOnlyFlag'] = config[:private_network_only] unless config[:private_network_only].nil?
+        @cmd_line['primaryBackendNetworkComponent'] = {'networkVlan' => {'id' => config[:private_vlan]}} unless config[:private_vlan].nil?
+        @cmd_line['primaryNetworkComponent'] = {'networkVlan' => {'id' => config[:public_vlan]}} unless config[:public_vlan].nil?
+        @cmd_line['datacenter'] = { 'name' => config[:datacenter] } unless config[:datacenter].nil?
+        @cmd_line['blockDeviceTemplateGroup'] = {'globalIdentifier' => config[:template_guid]} unless config[:template_guid].nil?
 
-        @template['datacenter'] = { 'name' => config[:datacenter] } if config[:datacenter]
+        @template.merge!(@cmd_line) {|key, v1, v2| v2.to_s=="" ? v1 : v2 } 
 
+        @template['operatingSystemReferenceCode'] =~ /^WIN_/ and raise SoftlayerServerCreateError, "#{ui.color("Windows VMs not currently supported.", :red)}"
+
+        if @template['blockDeviceTemplateGroup']
+          @template.delete('operatingSystemReferenceCode')
+          @template.delete('blockDevices')
+        end
+        
         @response = connection.createObject(@template)
-
+        
         puts ui.color("Launching SoftLayer VM, this may take a few minutes.", :green)
 
         begin
@@ -300,7 +341,7 @@ class Chef
       # @return [Chef::Knife::Bootstrap]
       def linux_bootstrap(cci)
         bootstrap = Chef::Knife::Bootstrap.new
-        bootstrap.name_args = [cci['primaryIpAddress']]
+        bootstrap.name_args = get_ip_address(cci)
         bootstrap.config[:ssh_user] = config[:ssh_user]
         bootstrap.config[:ssh_password] = cci['operatingSystem']['passwords'].first['password']
         bootstrap.config[:ssh_port] = config[:ssh_port]
@@ -337,8 +378,15 @@ class Chef
         # TODO: Windows support....
       end
 
+      def get_ip_address(cci)
+        if config[:use_backend_ip]
+          return [cci['primaryBackendIpAddress']]
+        else
+	  return [cci['primaryIpAddress']] || [cci['primaryBackendIpAddress']]
+	end
+      end
+
     end
   end
 end
-
 
