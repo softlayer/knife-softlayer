@@ -42,8 +42,7 @@ class Chef
       option :os_code,
         :long => '--os-code VALUE',
         :short => '-O VALUE',
-        :description => 'A valid SoftLayer operating system code.  See `knife softlayer flavor list --all` for a list of valid codes.',
-        :default => 'UBUNTU_LATEST'
+        :description => 'A valid SoftLayer operating system code.  See `knife softlayer flavor list --all` for a list of valid codes.'
 
       option :ram,
         :long => '--ram VALUE',
@@ -75,6 +74,15 @@ class Chef
       option :private_vlan,
          :long => '--private-vlan VLAN-ID',
          :description => 'Internal SoftLayer ID of the private VLAN into which the compute instance should be placed.'
+
+      option :image_id,
+        :long => '--image-id IMAGE-ID',
+        :description => 'Internal SoftLayer uuid specifying the image template from which the compute instance should be booted.'
+
+      option :private_network_only,
+        :long => '--private-network-only',
+        :description => 'Flag to be passed when the compute instance should have no public facing network interface.',
+        :boolean => true
 
       #option :single_tenant,
       #  :long => '--single-tenant',
@@ -258,6 +266,8 @@ class Chef
             :ssh_keys => :key_pairs,
             :vlan => nil,
             :private_vlan => nil,
+            :image_id => nil,
+            :private_network_only => nil,
             #:tags => nil
         }
 
@@ -328,7 +338,8 @@ class Chef
       # @return [Chef::Knife::Bootstrap]
       def linux_bootstrap(instance)
         bootstrap = Chef::Knife::Bootstrap.new
-        bootstrap.name_args = [instance.public_ip]
+        instance.ssh_ip_address = instance.private_ip_address if config[:private_network_only]
+        bootstrap.name_args = [instance.ssh_ip_address]
         bootstrap.config[:ssh_user] = config[:ssh_user]
         bootstrap.config[:ssh_password] = config[:ssh_password] if config[:ssh_password]
         bootstrap.config[:identity_file] = config[:identity_file] if config[:identity_file]
