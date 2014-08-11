@@ -7,128 +7,96 @@
 
 require File.expand_path('../../spec_helper', __FILE__)
 require 'chef/knife/bootstrap'
-require 'softlayer_api'
+require 'fog/softlayer'
+Fog.mock!
 
 
 describe Chef::Knife::SoftlayerServerCreate do
   before(:each) do
-    @knife_softlayer_create = Chef::Knife::SoftlayerServerCreate.new
-    @knife_softlayer_create.stub(:tcp_test_ssh).and_return(true)
+    Chef::Config[:knife][:softlayer_username] = 'username'
+    Chef::Config[:knife][:softlayer_api_key] = 'key'
 
-    @softlayer_connection = double("connection", :createObject => {
-        'accountId' => 000001,
-        'createDate' => '2014-03-24T18:03:27-04:00',
-        'dedicatedAccountHostOnlyFlag' => false,
-        'domain' => 'example.com',
-        'fullyQualifiedDomainName' => 'test',
-        'hostname' =>"test",
-        'id' => 0000001,
-        'lastPowerStateId' => nil,
-        'lastVerifiedDate' => nil,
-        'maxCpu' => 4,
-        'maxCpuUnits' => 'CORE',
-        'maxMemory' => 4096,
-        'metricPollDate' => nil,
-        'modifyDate' => nil,
-        'startCpus' => 4,
-        'statusId' => 1001,
-        'globalIdentifier' => '93f3bfb6-3f48-4e9c-82ab-25e8b5dd14ce'
-    })
+    @server_create = Chef::Knife::SoftlayerServerCreate.new
+    @server_create.stub(:tcp_test_ssh).and_return(true)
 
-    @softlayer_servers = double("servers")
-    @cci = double("cci")
-
-    @softlayer_server_attribs = { :id => '1234567',
-      :public_ip_address => '33.33.33.33',
-      :private_dns_name => 'example.com',
-      :private_ip_address => '10.10.10.10',
-    }
-
-    @softlayer_server_attribs.each_pair do |attrib, value|
-      @cci.stub(attrib).and_return(value)
-    end
+    @server_create.config[:ram] = 4096
+    @server_create.config[:cores] = 4
+    @server_create.config[:hostname] = 'test'
+    @server_create.config[:domain] = 'ibm.com'
+    @server_create.config[:datacenter] = 'hkg02'
+    @server_create.config[:os_code] = 'UBUNTU_LATEST'
+    @server_create.config[:block_storage] = '0:100'
   end
 
   describe "go-wrong cases for .run" do
     it "should raise an exception if we try to create/bootstrap a windows instance" do
-      @knife_softlayer_create.config[:os_code] = 'WIN_2012-STD_64'
-      expect { @knife_softlayer_create.run }.to raise_exception(Chef::Knife::SoftlayerServerCreateError)
+      @server_create.config[:os_code] = 'WIN_2012-STD_64'
+      expect { @server_create.run }.to raise_exception(Chef::Knife::SoftlayerServerCreateError)
+    end
+
+    [':ram', ':cores', ':hostname', ':domain', ':datacenter', ':os_code', ':block_storage'].each do |opt|
+    class_eval <<EOS, __FILE__, __LINE__
+    it "should should raise an ArgumentError if missing #{opt} option" do
+      @server_create.config.delete(#{opt})
+      expect { @server_create.run }.to raise_exception(ArgumentError)
+    end
+EOS
     end
   end
 
   describe "go-right cases for .run" do
     before do
-      @softlayer_connection.should_receive(:object_mask).with('mask.operatingSystem.passwords.password').and_return(@softlayer_servers)
-      @softlayer_servers.should_receive(:object_with_id).with(1).and_return(@softlayer_servers)
-      @softlayer_servers.should_receive(:getObject).and_return(@cci)
-      @cci.should_receive(:[]).exactly(3).times.with('operatingSystem').and_return({'passwords' => ['foobar']})
-      @cci.should_receive(:[]).with('primaryIpAddress').and_return('33.33.33.33')
-
-      @public_ip = "33.33.33.33"
-      SoftLayer::Service.should_receive(:new).twice.and_return(@softlayer_connection)
-
-
-      @knife_softlayer_create.stub(:puts)
-      @knife_softlayer_create.stub(:print)
-      {
-          :domain => 'example.com',
-          :hostname => 'test',
-          :flavor => 'medium',
-          :chef_node_name => 'test.example.com',
-      }.each do |key, value|
-        @knife_softlayer_create.config[key] = value
-      end
-
-      @bootstrap = Chef::Knife::Bootstrap.new
-      Chef::Knife::Bootstrap.stub(:new).and_return(@bootstrap)
-      @bootstrap.should_receive(:run)
+      @server_create.stub(:apply_tags).and_return(Proc.new{})
+      Chef::Knife::Bootstrap.any_instance.stub(:run)
+      Fog::Compute::Softlayer::Server.any_instance.stub(:ready?).and_return(true)
+      Fog::Compute::Softlayer::Server.any_instance.stub(:sshable?).and_return(true)
     end
 
     it "defaults to a distro of 'chef-full' for a linux instance" do
-      @knife_softlayer_create.config[:distro] = @knife_softlayer_create.options[:distro][:default]
-      @knife_softlayer_create.run
-      @bootstrap.config[:distro].should == 'chef-full'
+      @server_create.config[:distro] = @server_create.options[:distro][:default]
+      bootstrap = @server_create.linux_bootstrap(double('instance', :id => 42, :ssh_ip_address => '3.3.3.3', :private_ip_address => '3.3.3.3'))
+      bootstrap.config[:distro].should == 'chef-full'
     end
 
     it "creates an VM instance and bootstraps it" do
-      @knife_softlayer_create.run
-      @knife_softlayer_create.cci.should_not == nil
+      @server_create.run
+      @server_create.connection.virtual_guests.count.should == 1
     end
 
     it "sets ssh_user value by using -x option" do
-      # default value of config[:ssh_user] is root
-      @knife_softlayer_create.config[:ssh_user] = "tim-eah!"
+      #default value of config[:ssh_user] is root
+      @server_create.config[:ssh_user] = "tim-eah!"
 
-      @knife_softlayer_create.run
-      @knife_softlayer_create.config[:ssh_user].should == "tim-eah!"
-      @knife_softlayer_create.cci.should_not == nil
+      @server_create.run
+      @server_create.config[:ssh_user].should == "tim-eah!"
+      @server_create.connection.virtual_guests.count.should == 1
     end
 
     it "sets ssh_password value by using -P option" do
       # default value of config[:ssh_password] is nil
-      @knife_softlayer_create.config[:ssh_password] = "passw0rd"
+      @server_create.config[:ssh_password] = "passw0rd"
 
-      @knife_softlayer_create.run
-      @knife_softlayer_create.config[:ssh_password].should == "passw0rd"
-      @knife_softlayer_create.cci.should_not == nil
+      @server_create.run
+      @server_create.config[:ssh_password].should == "passw0rd"
+      @server_create.connection.virtual_guests.count.should == 1
     end
 
     it "sets ssh_port value by using -p option" do
       # default value of config[:ssh_port] is 22
-      @knife_softlayer_create.config[:ssh_port] = "86"
+      @server_create.config[:ssh_port] = "86"
 
-      @knife_softlayer_create.run
-      @knife_softlayer_create.config[:ssh_port].should == "86"
-      @knife_softlayer_create.cci.should_not == nil
+      @server_create.run
+      @server_create.config[:ssh_port].should == "86"
+      @server_create.connection.virtual_guests.count.should == 1
     end
 
     it "sets identity_file value by using -i option for ssh bootstrap protocol or linux image" do
       # default value of config[:identity_file] is nil
-      @knife_softlayer_create.config[:identity_file] = "~/.ssh/mah_key_file.pem"
+      @server_create.config[:identity_file] = "~/.ssh/mah_key_file.pem"
 
-      @knife_softlayer_create.run
-      @knife_softlayer_create.config[:identity_file].should == "~/.ssh/mah_key_file.pem"
-      @knife_softlayer_create.cci.should_not == nil
+      @server_create.run
+      @server_create.config[:identity_file].should == "~/.ssh/mah_key_file.pem"
+      @server_create.connection.virtual_guests.count.should == 1
     end
 
   end

@@ -18,21 +18,29 @@ class Chef
       banner 'knife softlayer flavor list (options)'
 
       option :all,
-        :short => "-a",
-        :long => "--all",
-        :description => "Display all available configuration options for launching an instance.",
-        :default => false
+             :short => "-a",
+             :long => "--all",
+             :description => "Display all available configuration options for launching an instance.",
+             :default => false
 
       ##
       # Run the procedure to list softlayer VM flavors or display all available options.
       # @return [nil]
       def run
-        table_data = table_info(config[:all])
+        $stdout.sync = true
         if config[:all]
-          puts ui.list(table_data, :columns_across, 6)
+
+          if OS.windows?
+            puts ui.list(options_table, :uneven_columns_across, 6)
+          else
+            IO.popen('less', 'w') do |pipe|
+              pipe.puts ui.list(options_table, :uneven_columns_across, 6)
+            end
+          end
+
           msg = "These options can be used in place of 'flavors'; See `knife softlayer server create --help` for details.\n"
         else
-          puts ui.list(table_data, :columns_across, 4)
+          puts connection.flavors.table([:id, :cpu, :ram, :disk,])
           msg = "'flavors' provided here for convenience; SoftLayer allows you to choose a configuration a la carte.\nFor a full list of available instance options use --all with the `knife softlayer flavor list` subcommand."
         end
         puts ui.color("\nNOTICE: ", :yellow)
@@ -42,3 +50,4 @@ class Chef
     end
   end
 end
+

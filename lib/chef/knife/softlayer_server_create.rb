@@ -6,7 +6,6 @@
 #
 
 require 'chef/knife/softlayer_base'
-require 'chef/knife/flavor/base'
 
 class Chef
   class Knife
@@ -33,31 +32,28 @@ class Chef
         :long => '--domain VALUE',
         :short => '-D VALUE',
         :description => 'The FQDN SoftLayer will assign to the VM instance.',
-        :default => 'example.com'
+        :default => Chef::Config[:knife][:softlayer_default_domain]
 
       option :cores,
         :long => '--cores VALUE',
         :short => '-C VALUE',
-        :description => 'The number of virtual cores SoftLayer will assign to the VM instance.',
-        :default => 1
+        :description => 'The number of virtual cores SoftLayer will assign to the VM instance.'
 
       option :os_code,
         :long => '--os-code VALUE',
         :short => '-O VALUE',
-        :description => 'A valid SoftLayer operating system code.  See `knife softlayer flavor list --all` for a list of valid codes.',
-        :default => 'UBUNTU_LATEST'
+        :description => 'A valid SoftLayer operating system code.  See `knife softlayer flavor list --all` for a list of valid codes.'
 
       option :ram,
         :long => '--ram VALUE',
         :short => '-R VALUE',
-        :description => 'The number of virtual cores SoftLayer will assign to the VM instance.',
-        :default => 1024
+        :description => 'The number of virtual cores SoftLayer will assign to the VM instance.'
+
 
       option :block_storage,
         :long => '--block-storage VALUE',
         :short => '-B VALUE',
-        :description => 'The size in GB of the block storage devices (disks) for this instance. Specify 1 - 5 entries in a comma separated list following the format "dev:size".  Example: "0:25,2:500" would be a 25GB volume on device 0 (the root partition) and a 100GB volume on on device 2. [NOTE: SoftLayer VMs always reserve device 1 for a swap device.] ',
-        :default => '0:25'
+        :description => 'The size in GB of the block storage devices (disks) for this instance. Specify 1 - 5 entries in a comma separated list following the format "dev:size".  Example: "0:25,2:500" would be a 25GB volume on device 0 (the root partition) and a 100GB volume on on device 2. [NOTE: SoftLayer VMs always reserve device 1 for a swap device.] '
 
       option :nic,
         :long => '--network-interface-speed VALUE',
@@ -71,11 +67,32 @@ class Chef
         :boolean => true,
         :default => false
 
-      option :single_tenant,
-        :long => '--single-tenant',
-        :description => 'Create a VM with a dedicated physical host.',
-        :boolean => true,
-        :default => false
+      option :vlan,
+         :long => '--vlan VLAN-ID',
+         :description => 'Internal SoftLayer ID of the public VLAN into which the compute instance should be placed.'
+
+      option :private_vlan,
+         :long => '--private-vlan VLAN-ID',
+         :description => 'Internal SoftLayer ID of the private VLAN into which the compute instance should be placed.'
+
+      option :image_id,
+        :long => '--image-id IMAGE-ID',
+        :description => 'Internal SoftLayer uuid specifying the image template from which the compute instance should be booted.'
+
+      option :private_network_only,
+        :long => '--private-network-only',
+        :description => 'Flag to be passed when the compute instance should have no public facing network interface.',
+        :boolean => true
+
+      option :from_file,
+             :long => '--from-file PATH',
+             :description => 'Path to JSON file containing arguments for provisoning and bootstrap.'
+
+      #option :single_tenant,
+      #  :long => '--single-tenant',
+      #  :description => 'Create a VM with a dedicated physical host.',
+      #  :boolean => true,
+      #  :default => false
 
       option :local_storage,
         :long => '--local-storage',
@@ -85,7 +102,8 @@ class Chef
 
       option :datacenter,
         :long => '--datacenter VALUE',
-        :description => 'Create a VM in a particular datacenter.'
+        :description => 'Create a VM in a particular datacenter.',
+        :default => Chef::Config[:knife][:softlayer_default_datacenter]
 
       option :tags,
              :short => "-T T=V[,T=V,...]",
@@ -99,7 +117,6 @@ class Chef
              :description => "The Chef node name for your new node",
              :proc => Proc.new { |key| Chef::Config[:knife][:chef_node_name] = key }
 
-
       option :ssh_user,
              :short => "-x USERNAME",
              :long => "--ssh-user USERNAME",
@@ -110,6 +127,12 @@ class Chef
              :short => "-P PASSWORD",
              :long => "--ssh-password PASSWORD",
              :description => "The ssh password"
+
+      option :ssh_keys,
+              :short => "-S KEY",
+              :long => "--ssh-keys KEY",
+              :description => "The ssh keys for the SoftLayer Virtual Guest environment. Accepts a space separated list of integers.",
+              :proc => Proc.new { |ssh_keys| ssh_keys.split(' ').map { |k| {:id => k}}  }
 
       option :ssh_port,
              :short => "-p PORT",
@@ -203,7 +226,7 @@ class Chef
              :default => nil
 
       option :new_global_ip,
-             :long => "--new-global-ip",
+             :long => "--new-global-ip VERSION",
              :description => "Order a new SoftLayer Global IP address and assign it to the instance."
 
       option :hint,
@@ -219,94 +242,127 @@ class Chef
       # Run the procedure to create a SoftLayer VM and bootstrap it.
       # @return [nil]
       def run
-
         $stdout.sync = true
+        config.merge!(slurp_from_file(config[:from_file])) if config[:from_file]
 
-        config[:os_code] =~ /^WIN_/ and raise SoftlayerServerCreateError, "#{ui.color("Windows VMs not currently supported.", :red)}"
+        # TODO: Windows support.
+        raise SoftlayerServerCreateError, "#{ui.color("Windows VMs not currently supported.", :red)}" if config[:os_code] =~ /^WIN_/
+        raise SoftlayerServerCreateError, "#{ui.color("identity file (-i) option is incompatible with password (-P) option required.", :red)}" if !!config[:identity_file] and !!config[:ssh_password]
+        raise SoftlayerServerCreateError, "#{ui.color("--new-global-ip value must be 'v4' or 'v6'.", :red)}" if config[:new_global_ip] and !config[:new_global_ip].to_s.match(/^v[4,6]$/i)
 
-        if config[:flavor]
-          @template = SoftlayerFlavorBase.load_flavor(config[:flavor])
-        else
-          @template = {}
-          @template['startCpus'] = config[:cores]
-          @template['maxMemory'] = config[:ram]
-          @template['localDiskFlag'] = config[:local_storage]
-          @template['blockDevices'] = config[:block_storage].split(',').map do |i|
-            dev, cap = i.split(':')
-            {'device' => dev, 'diskImage' => {'capacity' => cap } }
-            end
+        # TODO: create a pre-launch method for clean up tasks.
+        # TODO: create a pre-launch method for clean up tasks.
+        config[:vlan] = config[:vlan].to_i if config[:vlan]
+        config[:private_vlan] = config[:private_vlan].to_i if config[:private_vlan]
+        Fog.credentials[:private_key_path] = config[:identity_file] if config[:identity_file]
+        # TODO: create a pre-launch method for clean up tasks.
+        # TODO: create a pre-launch method for clean up tasks.
+
+        opts = {
+            :flavor => :flavor_id,
+            :hostname => :name,
+            :domain => nil,
+            :cores => :cpu,
+            :os_code => nil,
+            :ram => nil,
+            :block_storage => :disk,
+            :local_storage => :ephemeral_storage,
+            :datacenter => nil,
+            :ssh_keys => :key_pairs,
+            :vlan => nil,
+            :private_vlan => nil,
+            :image_id => nil,
+            :private_network_only => nil,
+            #:tags => nil
+        }
+
+
+        opts.keys.each do |opt|
+          if opts[opt].nil?
+            opts[opt] = config[opt]
+          else
+            opts[opts.delete(opt)] = config[opt]  # clever shit like this is why I like programming :-]
+          end
         end
 
-        @template['complexType'] = SoftlayerBase.cci
-        @template['hostname'] = config[:hostname]
-        @template['domain'] = config[:domain]
-        @template['dedicatedAccountHostOnlyFlag'] = config[:single_tenant]
-        @template['operatingSystemReferenceCode'] = config[:os_code]
-        @template['hourlyBillingFlag'] = !config[:bill_monthly]
-        @template['networkComponents'] = [{ 'maxSpeed' => config[:nic]}]
-
-        @template['datacenter'] = { 'name' => config[:datacenter] } if config[:datacenter]
-
-        @response = connection.createObject(@template)
+        opts.delete_if { |k,v| v.nil? }
 
         puts ui.color("Launching SoftLayer VM, this may take a few minutes.", :green)
+        instance = connection.servers.create(opts)
+        progress Proc.new { instance.wait_for { ready? and sshable? } }
+        putc("\n")
 
-        begin
-          @cci = connection.object_mask('mask.operatingSystem.passwords.password').object_with_id(@response['id']).getObject
-          sleep 1
-          putc('.')
-        end while @cci['operatingSystem'].nil? or @cci['operatingSystem']['passwords'].empty?
+        if config[:tags]
+          puts ui.color("Applying tags to SoftLayer instance.", :green)
+          progress Proc.new { instance.add_tags(config[:tags]) }
+          putc("\n")
+        end
 
-        linux_bootstrap(@cci).run
 
         if config[:new_global_ip] || config[:assign_global_ip]
-          if config[:new_global_ip]
+          if config[:new_global_ip] # <— the value of this will be v4 or v6
             begin
-              order = SoftlayerBase.build_global_ipv4_order
-              response = connection(:order).placeOrder(order)
-              global_ip_id = response['placedOrder']['account']['globalIpv4Records'].first['id']
-
-              if global_ip_id
-                puts ui.color('Global IP Address successfully created.', :green)
-              else
-                raise 'Unable to find Global IP Address ID.  Address not created.'
+              puts ui.color('Provisioning new Global IP' + config[:new_global_ip].downcase + ', this may take a few minutes.', :green)
+              create_global_ip =  Proc.new do
+                existing_records = connection(:network).get_global_ip_records.body
+                connection(:network).send('create_new_global_ip' + config[:new_global_ip].downcase) or raise SoftlayerServerCreateError, "Unable to create new Global IP Address.";
+                sleep 20 # if we look for the new record too quickly it won't be there yet...
+                new_record_global_id = (connection(:network).get_global_ip_records.body - existing_records).reduce['id']
+                connection(:network).ips.select { |ip| ip.global_id == new_record_global_id }.reduce
               end
-            rescue Exception => e
+              global_ip = progress(create_global_ip) or raise SoftlayerServerCreateError, "Error encountered creating Global IP Address."
+              puts ui.color('Global IP Address successfully created.', :green)
+            rescue SoftlayerServerCreateError => e
               puts ui.color('We have encountered a problem ordering the requested global IP.  The transaction may not have completed.', :red)
               puts ui.color(e.message, :yellow)
             end
           end
 
           if config[:assign_global_ip]
-            global_ip_id = connection(:account).object_mask('ipAddress').getGlobalIpv4Records.map do |global_ip|
-              global_ip['id'] if global_ip['ipAddress']['ipAddress'] == config[:assign_global_ip]
-            end.compact.first
-            if global_ip_id
-              puts ui.color('Global IP Address ID found.', :green)
+            case config[:assign_global_ip].to_s
+              #ipv4
+              when /^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$/
+                global_ip = connection(:network).ips.by_address(config[:assign_global_ip])
+              #ipv6
+              when /^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$/
+                global_ip = connection(:network).ips.by_address(config[:assign_global_ip])
+              else
+                raise SoftlayerServerCreateError, "--assign-global-ip value must be valid IPv4 or IPv6 address"
             end
+            global_ip or raise SoftlayerServerCreateError, "Global IP address not found.  Please check the address or id supplied and try again."
+            global_ip.reload
           end
 
-          puts ui.color('Assigning Global IP Address to Instance.', :green)
-          connection(:global_ip).object_with_id(global_ip_id).route(@cci['primaryIpAddress'])
-
-          puts ui.color('Global IP Address has been assigned.', :green)
-          puts ui.color('Global IP Address will not function without networking rules on the endpoint operating system.  See http://knowledgelayer.softlayer.com/learning/global-ip-addresses for details.', :yellow)
+          route_global_ip = Proc.new do
+            puts ui.color('Routing Global IP Address to Instance.', :green)
+            global_ip.route(connection(:network).ips.by_address(instance.public_ip_address)) or raise SoftlayerServerCreateError, "Global IP address failed to route."
+            puts ui.color('Global IP Address has been assigned.', :green)
+            puts ui.color('Global IP Address will not function without networking rules on the endpoint operating system.  See http://knowledgelayer.softlayer.com/learning/global-ip-addresses for details.', :yellow)
+          end
+          progress(route_global_ip)
 
         end
 
+        puts ui.color('Bootstrapping Chef node, this may take a few minutes.', :green)
+        linux_bootstrap(instance).run
+
+        puts ui.color("Applying tags to Chef node.", :green)
+        progress apply_tags(instance)
+
       end
 
-      # @param [Hash] cci
+      # @param [Hash] instance
       # @return [Chef::Knife::Bootstrap]
-      def linux_bootstrap(cci)
+      def linux_bootstrap(instance)
         bootstrap = Chef::Knife::Bootstrap.new
-        bootstrap.name_args = [cci['primaryIpAddress']]
+        instance.ssh_ip_address = instance.private_ip_address if config[:private_network_only]
+        bootstrap.name_args = [instance.ssh_ip_address]
         bootstrap.config[:ssh_user] = config[:ssh_user]
-        bootstrap.config[:ssh_password] = cci['operatingSystem']['passwords'].first['password']
+        bootstrap.config[:ssh_password] = config[:ssh_password] if config[:ssh_password]
+        bootstrap.config[:identity_file] = config[:identity_file] if config[:identity_file]
         bootstrap.config[:ssh_port] = config[:ssh_port]
         bootstrap.config[:ssh_gateway] = config[:ssh_gateway]
-        bootstrap.config[:identity_file] = config[:identity_file]
-        bootstrap.config[:chef_node_name] = locate_config_value(:chef_node_name) || cci['id']
+        bootstrap.config[:chef_node_name] = locate_config_value(:chef_node_name) || instance.id
         bootstrap.config[:use_sudo] = true unless config[:ssh_user] == 'root'
         bootstrap.config[:host_key_verify] = config[:host_key_verify]
         shared_bootstrap(bootstrap)
@@ -335,6 +391,43 @@ class Chef
 
       def windows_bootstrap(server, fqdn)
         # TODO: Windows support....
+      end
+
+      def progress(proc)
+        t = Thread.new { Thread.current[:output] = proc.call }
+        i = 0
+        while t.alive?
+          sleep 0.5
+          putc('.')
+          i += 1
+          putc("\n") if i == 76
+          i = 0 if i == 76
+        end
+        putc("\n")
+        t.join
+        t[:output]
+      end
+
+      def slurp_from_file(path)
+        args = JSON.parse(IO.read(path))
+        args.keys.each { |key| args[key.gsub('-', '_').to_sym] = args.delete(key) }
+        # TODO: Something less ugly than the empty rescue block below.  The :proc Procs/Lambdas aren't idempotent...
+        args.keys.each { |key| begin; args[key] = options[key][:proc] ? options[key][:proc].call(args[key]) : args[key]; rescue; end }
+        args
+      end
+
+      def apply_tags(instance)
+        Proc.new do
+          chef = Chef::Search::Query.new
+          chef.search('node', "name:#{locate_config_value(:chef_node_name) || instance.id}") do |n|
+            config[:tags] = [] if config[:tags].nil? # we're going to tag every Chef node with the SL id no matter what
+            config[:tags] << "slid=#{instance.id}"
+            config[:tags].each do |tag|
+              n.tag(tag)
+            end
+            n.save
+          end
+        end
       end
 
     end
