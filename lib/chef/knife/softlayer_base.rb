@@ -7,6 +7,7 @@
 
 require 'chef/knife'
 require 'knife-softlayer/version'
+require 'pry'
 
 class Chef
   class Knife
@@ -19,11 +20,17 @@ class Chef
         includer.class_eval do
 
           deps do
-            require 'softlayer_api'
-            require 'readline'
-            require 'chef/json_compat'
+            require 'fog/softlayer'
             require 'net/ssh'
             require 'net/ssh/multi'
+            require 'chef/monkey_patches/net-ssh-multi'
+            require 'readline'
+            require 'chef/exceptions'
+            require 'chef/search/query'
+            require 'chef/mixin/command'
+            require 'chef/mixin/shell_out'
+            require 'mixlib/shellout'
+            require 'chef/json_compat'
           end
 
           option :softlayer_credential_file,
@@ -49,102 +56,26 @@ class Chef
       # Returns a connection to a SoftLayer API Service Endpoint.
       # @param [Symbol] service
       # @return [SoftLayer::Service]
-      def connection(service=:cci)
-        SoftLayer::Service.new(
-            SoftlayerBase.send(service),
-            :username => Chef::Config[:knife][:softlayer_username],
-            :api_key => Chef::Config[:knife][:softlayer_api_key],
-            :user_agent => USER_AGENT
+      def connection(service=:compute)
+        self.send(service)
+      end
+
+      def compute
+        @compute_connection ||= Fog::Compute.new(
+            :provider => :softlayer,
+            :softlayer_username => Chef::Config[:knife][:softlayer_username],
+            :softlayer_api_key => Chef::Config[:knife][:softlayer_api_key],
+            :softlayer_default_datacenter => Chef::Config[:knife][:softlayer_default_datacenter],
+            :softlayer_default_domain => Chef::Config[:knife][:softlayer_default_domain],
         )
       end
 
-      ##
-      # Returns identifier string for the SoftLayer Virtual Guest service.
-      # @return [String]
-      def self.cci
-        'SoftLayer_Virtual_Guest'
-        end
-
-      ##
-      # Returns identifier string for the SoftLayer Product Package service.
-      # @return [String]
-      def self.package
-        'SoftLayer_Product_Package'
-      end
-
-      ##
-      # Returns identifier string for the SoftLayer Product Order service.
-      # @return [String]
-      def self.order
-        'SoftLayer_Product_Order'
-      end
-
-      ##
-      # Returns identifier string for the SoftLayer Subnet Ordering service.
-      # @return [String]
-      def self.subnet
-        'SoftLayer_Container_Product_Order_Network_Subnet'
-      end
-
-      ##
-      # Returns identifier string for the SoftLayer User Account service.
-      # @return [String]
-      def self.account
-        'SoftLayer_Account'
-      end
-
-      ##
-      # Returns identifier string for the SoftLayer Global IP service.
-      # @return [String]
-      def self.global_ip
-        'SoftLayer_Network_Subnet_IpAddress_Global'
-      end
-
-      ##
-      # Returns id of a particular SoftLayer ordering package.
-      # @return [String]
-      def self.non_server_package_id
-        0 # this package contains everything that isn't a server on the SoftLayer API
-      end
-
-      ##
-      # Queries the SoftLayer API and returns the "category code" required for ordering a Global IPv4 address.
-      # @return [Integer]
-      def self.global_ipv4_cat_code
-        SoftLayer::Service.new(
-            SoftlayerBase.send(:package),
-            :username => Chef::Config[:knife][:softlayer_username],
-            :api_key => Chef::Config[:knife][:softlayer_api_key],
-            :user_agent => USER_AGENT
-        ).object_with_id(non_server_package_id).object_mask('isRequired', 'itemCategory').getConfiguration.map do |item|
-          item['itemCategory']['id'] if item['itemCategory']['categoryCode'] == 'global_ipv4'
-        end.compact.first
-      end
-
-      ##
-      # Queries the SoftLayer API and returns the "price code" required for ordering a Global IPv4 address.
-      # @return [Integer]
-      def self.global_ipv4_price_code
-        SoftLayer::Service.new(
-            SoftlayerBase.send(:package),
-            :username => Chef::Config[:knife][:softlayer_username],
-            :api_key => Chef::Config[:knife][:softlayer_api_key],
-            :user_agent => USER_AGENT
-        ).object_with_id(non_server_package_id).object_mask('id', 'item.description', 'categories.id').getItemPrices.map do |item|
-          item['id'] if item['categories'][0]['id'] == SoftlayerBase.global_ipv4_cat_code
-        end.compact.first
-      end
-
-      ##
-      # Constructs an order required for purchasing a Global IPv4 address.
-      # @return [Hash]
-      def self.build_global_ipv4_order
-        {
-            "complexType" => SoftlayerBase.subnet,
-            "packageId" => non_server_package_id,
-            "prices" => [{"id"=>SoftlayerBase.global_ipv4_price_code}],
-            "quantity" => 1
-        }
+      def network
+        @network_connection ||= Fog::Network.new(
+          :provider => :softlayer,
+          :softlayer_username => Chef::Config[:knife][:softlayer_username],
+          :softlayer_api_key => Chef::Config[:knife][:softlayer_api_key],
+        )
       end
 
       ##
