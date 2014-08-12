@@ -84,6 +84,10 @@ class Chef
         :description => 'Flag to be passed when the compute instance should have no public facing network interface.',
         :boolean => true
 
+      option :from_file,
+             :long => '--from-file PATH',
+             :description => 'Path to JSON file containing arguments for provisoning and bootstrap.'
+
       #option :single_tenant,
       #  :long => '--single-tenant',
       #  :description => 'Create a VM with a dedicated physical host.',
@@ -127,7 +131,8 @@ class Chef
       option :ssh_keys,
               :short => "-S KEY",
               :long => "--ssh-keys KEY",
-              :description => "The ssh keys for the SoftLayer Virtual Guest environment. Accepts a space separated list of integers."
+              :description => "The ssh keys for the SoftLayer Virtual Guest environment. Accepts a space separated list of integers.",
+              :proc => Proc.new { |ssh_keys| ssh_keys.split(' ').map { |k| {:id => k}}  }
 
       option :ssh_port,
              :short => "-p PORT",
@@ -238,6 +243,7 @@ class Chef
       # @return [nil]
       def run
         $stdout.sync = true
+        config.merge!(slurp_from_file(config[:from_file])) if config[:from_file]
 
         # TODO: Windows support.
         raise SoftlayerServerCreateError, "#{ui.color("Windows VMs not currently supported.", :red)}" if config[:os_code] =~ /^WIN_/
@@ -246,7 +252,6 @@ class Chef
 
         # TODO: create a pre-launch method for clean up tasks.
         # TODO: create a pre-launch method for clean up tasks.
-        config[:ssh_keys] = config[:ssh_keys].split(' ').map { |k| {:id => k}} if config[:ssh_keys]
         config[:vlan] = config[:vlan].to_i if config[:vlan]
         config[:private_vlan] = config[:private_vlan].to_i if config[:private_vlan]
         Fog.credentials[:private_key_path] = config[:identity_file] if config[:identity_file]
@@ -284,6 +289,7 @@ class Chef
 
         puts ui.color("Launching SoftLayer VM, this may take a few minutes.", :green)
         instance = connection.servers.create(opts)
+
         progress Proc.new { instance.wait_for { ready? and sshable? } }
         putc("\n")
 
@@ -391,6 +397,13 @@ class Chef
         t[:output]
       end
 
+      def slurp_from_file(path)
+        args = JSON.parse(IO.read(path))
+        args.keys.each { |key| args[key.gsub('-', '_').to_sym] = args.delete(key) }
+        # TODO: Something less ugly than the empty rescue block below.  The :proc Procs/Lambdas aren't idempotent...
+        args.keys.each { |key| begin; args[key] = options[key][:proc] ? options[key][:proc].call(args[key]) : args[key]; rescue; end }
+        args
+      end
 
     end
   end
