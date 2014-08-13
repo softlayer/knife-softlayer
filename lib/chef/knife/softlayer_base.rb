@@ -102,3 +102,9 @@ class Chef
     end
   end
 end
+
+module OS
+  def OS.windows?
+    (/cygwin|mswin|mingw|bccwin|wince|emx/ =~ RUBY_PLATFORM) != nil
+  end
+end
