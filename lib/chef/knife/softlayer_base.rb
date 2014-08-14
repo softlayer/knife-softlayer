@@ -7,7 +7,6 @@
 
 require 'chef/knife'
 require 'knife-softlayer/version'
-require 'pry'
 
 class Chef
   class Knife
