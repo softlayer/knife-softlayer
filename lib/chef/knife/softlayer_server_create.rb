@@ -247,7 +247,7 @@ class Chef
 
         # TODO: Windows support.
         raise SoftlayerServerCreateError, "#{ui.color("Windows VMs not currently supported.", :red)}" if config[:os_code] =~ /^WIN_/
-        raise SoftlayerServerCreateError, "#{ui.color("Exactly one of identity file (-i) OR password (-P) options required.", :red)}" unless !!config[:identity_file] ^ !!config[:ssh_password]
+        raise SoftlayerServerCreateError, "#{ui.color("identity file (-i) option is incompatible with password (-P) option required.", :red)}" if !!config[:identity_file] and !!config[:ssh_password]
         raise SoftlayerServerCreateError, "#{ui.color("--new-global-ip value must be 'v4' or 'v6'.", :red)}" if config[:new_global_ip] and !config[:new_global_ip].to_s.match(/^v[4,6]$/i)
 
         # TODO: create a pre-launch method for clean up tasks.
@@ -289,9 +289,15 @@ class Chef
 
         puts ui.color("Launching SoftLayer VM, this may take a few minutes.", :green)
         instance = connection.servers.create(opts)
-
         progress Proc.new { instance.wait_for { ready? and sshable? } }
         putc("\n")
+
+        if config[:tags]
+          puts ui.color("Applying tags to SoftLayer instance.", :green)
+          progress Proc.new { instance.add_tags(config[:tags]) }
+          putc("\n")
+        end
+
 
         if config[:new_global_ip] || config[:assign_global_ip]
           if config[:new_global_ip] # <— the value of this will be v4 or v6
@@ -337,7 +343,12 @@ class Chef
 
         end
 
+        puts ui.color('Bootstrapping Chef node, this may take a few minutes.', :green)
         linux_bootstrap(instance).run
+
+        puts ui.color("Applying tags to Chef node.", :green)
+        progress apply_tags(instance)
+
       end
 
       # @param [Hash] instance
@@ -403,6 +414,20 @@ class Chef
         # TODO: Something less ugly than the empty rescue block below.  The :proc Procs/Lambdas aren't idempotent...
         args.keys.each { |key| begin; args[key] = options[key][:proc] ? options[key][:proc].call(args[key]) : args[key]; rescue; end }
         args
+      end
+
+      def apply_tags(instance)
+        Proc.new do
+          chef = Chef::Search::Query.new
+          chef.search('node', "name:#{locate_config_value(:chef_node_name) || instance.id}") do |n|
+            config[:tags] = [] if config[:tags].nil? # we're going to tag every Chef node with the SL id no matter what
+            config[:tags] << "slid=#{instance.id}"
+            config[:tags].each do |tag|
+              n.tag(tag)
+            end
+            n.save
+          end
+        end
       end
 
     end
