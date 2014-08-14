@@ -7,17 +7,17 @@
 
 require File.expand_path('../../spec_helper', __FILE__)
 require 'chef/knife/bootstrap'
-require 'softlayer_api'
+require 'fog/softlayer'
 
 
 describe Chef::Knife::SoftlayerBase do
 
   describe "connection" do
-    it "should set the user agent string that the softlayer_api gem uses" do
+    it "should successfully create a connection using fog" do
       Chef::Config[:knife][:softlayer_username] = 'username'
       Chef::Config[:knife][:softlayer_api_key] = 'key'
-      sl = Chef::Knife::SoftlayerServerCreate.new
-      sl.connection.user_agent['User-Agent'].should match /Knife Softlayer Plugin/
+      Chef::Knife::SoftlayerServerCreate.new.connection
+      Chef::Knife::SoftlayerServerCreate.new.connection.should be_a(Fog::Compute::Softlayer::Real)
     end
   end
 
