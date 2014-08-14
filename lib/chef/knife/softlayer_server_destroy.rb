@@ -23,7 +23,7 @@ class Chef
       option :chef_node_name,
         :short => "-N NAME",
         :long => "--node-name NAME",
-        :description => "The Chef node name for your new node"
+        :description => "The name of the node to be destroyed."
 
       option :ip_address,
         :long => "--ip-address ADDRESS",
@@ -53,12 +53,11 @@ class Chef
         else
           raise "#{ui.color("FATAL: Please supply the node name or IP address.", :red)}"
         end
-
-        @cci = connection.findByIpAddress(config[:ip_address])
-
+        @slid = @node.tags.select { |s| s =~ /^slid=/ }.reduce.gsub('slid=', '').to_i
+        @instance = connection.servers.get(@slid)
 
         @node.nil? and raise "#{ui.color('Chef node not found!', :red)}"
-        @cci.nil? and raise "#{ui.color('VM instance with IP: ' + config[:ip_address] +' not found!', :red)}"
+        @instance.nil? and raise "#{ui.color('VM instance with IP: ' + config[:ip_address] +' not found!', :red)}"
 
 
         begin
@@ -81,7 +80,7 @@ class Chef
           end
 
           begin
-            connection.object_with_id(@cci['id']).deleteObject
+            @instance.destroy
             puts ui.color("SoftLayer VM successfully deleted. You are no longer being billed for this instance.", :green)
           rescue Exception => e
             err_msg ui.color("ERROR DELETING SOFTLAYER VM. IT'S POSSIBLE YOU ARE STILL BEING BILLED FOR THIS INSTANCE.  PLEASE CONTACT SUPPORT FOR FURTHER ASSISTANCE", :red)
