@@ -16,19 +16,14 @@ class Chef
       banner 'knife softlayer vlan create'
 
       def run
-        #unless name_args.size == 1
-        #  puts ui.color("Specify exactly one vlan to show.", :red)
-        #  show_usage
-        #  exit 1
-        #end
 
         $stdout.sync = true
 
         opts = {
-          :name => ui.ask_question("Enter a vlan name:"),
-          :datacenter => connection(:network).datacenters.by_name(ui.ask_question("Enter a datacenter name:")),
-          :router => {'hostname' => ui.ask_question("Enter a router hostname:")},
-          :network_space => ui.ask_question("Enter a network space:", :default => 'PUBLIC'),
+          :name => ui.ask_question("Enter a vlan name: "),
+          :datacenter => connection(:network).datacenters.by_name(ui.ask_question("Enter a datacenter name: ")),
+          :router => {'hostname' => ui.ask_question("Enter a router hostname: ")},
+          :network_space => ui.ask_question("Enter a network space: ", :default => 'PUBLIC'),
         }
 
         vlan = connection(:network).networks.create(opts)

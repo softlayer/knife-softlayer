@@ -13,7 +13,7 @@ class Chef
 
       include Knife::SoftlayerBase
 
-      banner 'knife softlayer global ips list (options)'
+      banner 'knife softlayer global ip list (options)'
 
       def run
         $stdout.sync = true
