@@ -16,7 +16,7 @@ Gem::Specification.new do |spec|
   spec.authors       = ["Matt Eldridge"]
   spec.email         = ["matt.eldridge@us.ibm.com"]
   spec.summary       = %q{SoftLayer VM support for Chef's knife utility.}
-  spec.description   = spec.summary
+  spec.description   = IO.read('./README.md')
   spec.homepage      = "https://github.com/SoftLayer/knife-softlayer"
   spec.license       = "Apache 2.0"
 
@@ -25,12 +25,12 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r{^(spec|spec|features)/})
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "fog-softlayer", "~> 0.3.14"
-  spec.add_dependency "knife-windows", "> 0.5.12"
-  spec.add_dependency "net-ssh", "> 2.8.0"
+  spec.add_dependency "fog-softlayer", "~> 0.3", ">= 0.3.14"
+  spec.add_dependency "knife-windows", "~> 0.5", "> 0.5.12"
+  spec.add_dependency "net-ssh", "~> 2.8", "> 2.8.0"
 
   spec.add_development_dependency "mixlib-config", "~>2.0"
-  spec.add_development_dependency "chef", ">=0.10.10"
+  spec.add_development_dependency "chef", "~> 0.10", ">= 0.10.10"
   spec.add_development_dependency "rspec", "~>2.14"
   spec.add_development_dependency "rake", "~>10.1"
   spec.add_development_dependency "sdoc", "~>0.3"

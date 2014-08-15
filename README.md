@@ -3,7 +3,7 @@
 [![Build Status](https://api.travis-ci.org/softlayer/knife-softlayer.svg)](https://travis-ci.org/softlayer/knife-softlayer)
 [![Dependency Status](https://gemnasium.com/softlayer/knife-softlayer.svg)](https://gemnasium.com/softlayer/knife-softlayer)
 
-A knife plugin for launching and bootstrapping instances in the IBM SoftLayer cloud.
+A Chef Knife plugin for launching, bootstrapping, and managing compute instances in the IBM SoftLayer cloud.
 
 ## Installation
 
