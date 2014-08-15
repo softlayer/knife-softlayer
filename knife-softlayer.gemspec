@@ -16,7 +16,7 @@ Gem::Specification.new do |spec|
   spec.authors       = ["Matt Eldridge"]
   spec.email         = ["matt.eldridge@us.ibm.com"]
   spec.summary       = %q{SoftLayer VM support for Chef's knife utility.}
-  spec.description   = IO.read('./README.md')
+  spec.description   = %q{A knife plugin for launching and bootstrapping instances in the IBM SoftLayer cloud.}
   spec.homepage      = "https://github.com/SoftLayer/knife-softlayer"
   spec.license       = "Apache 2.0"
 
