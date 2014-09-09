@@ -289,6 +289,9 @@ class Chef
 
         puts ui.color("Launching SoftLayer VM, this may take a few minutes.", :green)
         instance = connection.servers.create(opts)
+        if config[:private_network_only]
+          instance.ssh_ip_address = Proc.new {|server| server.private_ip_address }
+        end
         progress Proc.new { instance.wait_for { ready? and sshable? } }
         putc("\n")
 
