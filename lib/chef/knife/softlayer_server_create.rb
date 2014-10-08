@@ -53,7 +53,8 @@ class Chef
       option :block_storage,
         :long => '--block-storage VALUE',
         :short => '-B VALUE',
-        :description => 'The size in GB of the block storage devices (disks) for this instance. Specify 1 - 5 entries in a comma separated list following the format "dev:size".  Example: "0:25,2:500" would be a 25GB volume on device 0 (the root partition) and a 100GB volume on on device 2. [NOTE: SoftLayer VMs always reserve device 1 for a swap device.] '
+        :description => 'The size in GB of the block storage devices (disks) for this instance. Specify 1 - 5 entries in a comma separated list following the format "dev:size".  Example: "0:25,2:500" would be a 25GB volume on device 0 (the root partition) and a 100GB volume on on device 2. [NOTE: SoftLayer VMs always reserve device 1 for a swap device.] ',
+        :proc => Proc.new { |devs| devs.split(',').map{ |dev| device, capacity = dev.split(':'); {"device"=>device, "diskImage"=>{"capacity"=>capacity}}  }  }
 
       option :nic,
         :long => '--network-interface-speed VALUE',
