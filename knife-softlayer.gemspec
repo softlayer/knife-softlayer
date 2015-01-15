@@ -25,7 +25,8 @@ Gem::Specification.new do |spec|
   spec.test_files    = spec.files.grep(%r{^(spec|spec|features)/})
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "fog-softlayer", "~> 0.3", ">= 0.3.29"
+  spec.add_dependency "fog-softlayer", "0.3.29"
+  #spec.add_dependency "fog-softlayer", "~> 0.3", ">= 0.3.29"
   spec.add_dependency "knife-windows", "> 0.5.12"
   spec.add_dependency "net-ssh", "> 2.8.0"
 
