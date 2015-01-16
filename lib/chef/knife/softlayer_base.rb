@@ -32,6 +32,9 @@ class Chef
             require 'chef/json_compat'
           end
 
+          # Make the base bootstrap options available on topo bootstrap
+          self.options = (Chef::Knife::Bootstrap.options).merge(self.options)
+
           option :softlayer_credential_file,
                  :long => "--softlayer-credential-file FILE",
                  :description => "File containing SoftLayer credentials as used by `softlayer_api` Ruby gem.",
