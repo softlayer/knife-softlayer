@@ -239,6 +239,10 @@ class Chef
                Chef::Config[:knife][:hints][name] = path ? JSON.parse(::File.read(path)) : Hash.new
              }
 
+      require 'chef/knife/bootstrap'
+      # Make the base bootstrap options available on topo bootstrap
+      self.options = (Chef::Knife::Bootstrap.options).merge(self.options)
+
       ##
       # Run the procedure to create a SoftLayer VM and bootstrap it.
       # @return [nil]

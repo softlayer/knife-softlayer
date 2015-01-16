@@ -50,6 +50,17 @@ class Chef
           @chef.search('node', "ipaddress:#{config[:ip_address]}") do |node|
             @node = node
           end
+        elsif arg = name_args[0]
+          if arg =~ /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/ # ipv4
+            query = "ipaddress:#{arg}"
+          elsif arg =~ /^(?:[A-F0-9]{1,4}:){7}[A-F0-9]{1,4}$/ # ipv6
+            query = "ipaddress:#{arg}"
+          else
+            query = "name:#{arg}"
+          end
+          @chef.search('node', query) do |node|
+            @node = node
+          end
         else
           raise "#{ui.color("FATAL: Please supply the node name or IP address.", :red)}"
         end

@@ -34,11 +34,12 @@ describe Chef::Knife::SoftlayerServerCreate do
       expect { @server_create.run }.to raise_exception(Chef::Knife::SoftlayerServerCreateError)
     end
 
+
     [':ram', ':cores', ':hostname', ':domain', ':datacenter', ':os_code', ':block_storage'].each do |opt|
     class_eval <<EOS, __FILE__, __LINE__
-    it "should should raise an ArgumentError if missing #{opt} option" do
+    it "should should raise an exception if missing #{opt} option" do
       @server_create.config.delete(#{opt})
-      expect { @server_create.run }.to raise_exception(ArgumentError)
+      expect { @server_create.run }.to raise_exception
     end
 EOS
     end
