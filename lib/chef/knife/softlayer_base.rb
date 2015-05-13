@@ -5,7 +5,7 @@
 # LICENSE: Apache 2.0 (http://www.apache.org/licenses/)
 #
 
-require 'chef/knife'
+require 'chef/knife/bootstrap'
 require 'knife-softlayer/version'
 
 class Chef
