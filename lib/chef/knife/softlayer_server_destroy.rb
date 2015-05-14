@@ -38,56 +38,68 @@ class Chef
         $stdout.sync = true
 
         puts ui.color("Decommissioning SoftLayer VM, this may take a few minutes.", :green)
-
-        @chef = Chef::Search::Query.new
-
-        if config[:chef_node_name]
-          @chef.search('node', "name:#{config[:chef_node_name]}") do |node|
-            config[:ip_address] = node.ipaddress
-            @node = node
-          end
-        elsif config[:ip_address]
-          @chef.search('node', "ipaddress:#{config[:ip_address]}") do |node|
-            @node = node
-          end
-        elsif arg = name_args[0]
-          if arg =~ /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/ # ipv4
-            query = "ipaddress:#{arg}"
-          elsif arg =~ /^(?:[A-F0-9]{1,4}:){7}[A-F0-9]{1,4}$/ # ipv6
-            query = "ipaddress:#{arg}"
-          else
-            query = "name:#{arg}"
-          end
-          @chef.search('node', query) do |node|
-            @node = node
-          end
-        else
-          raise "#{ui.color("FATAL: Please supply the node name or IP address.", :red)}"
+        connection.servers.each do |server|
+          if config[:ip_address]
+            if server.public_ip_address == config[:ip_address]
+              @instance = server
+              break
+            end
+          elsif config[:chef_node_name]
+            if server.name == config[:chef_node_name]
+              config[:ip_address] = server.public_ip_address
+              @instance = server
+              break
+            end
+          elsif  arg = name_args[0]
+            if arg =~ /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/ # ipv4
+              if server.public_ip_address == arg
+                @instance = server
+                break
+              end
+            elsif arg =~ /^(?:[A-F0-9]{1,4}:){7}[A-F0-9]{1,4}$/ # ipv6
+              if server.public_ip_address == arg
+                @instance = server
+                break
+              end
+            else
+              if server.name == arg
+                config[:ip_address] = server.public_ip_address
+                @instance = server
+                break
+              end
+            end
+          end              
         end
-        @slid = @node.tags.select { |s| s =~ /^slid=/ }.reduce.gsub('slid=', '').to_i
-        @instance = connection.servers.get(@slid)
-
-        @node.nil? and raise "#{ui.color('Chef node not found!', :red)}"
-        @instance.nil? and raise "#{ui.color('VM instance with IP: ' + config[:ip_address] +' not found!', :red)}"
-
+        @instance.nil? and raise "#{ui.color('VM instance with IP: ' + (config[:ip_address].to_s) +' not found!', :red)}"
+        @chef = Chef::Search::Query.new
+        @chef.search('node', "name:#{@instance.name}") do |node|
+          begin
+            @node = node               
+          rescue
+          end
+        end
 
         begin
-          begin
-            destroy_item(Chef::Node, @node.name, "node")
-            puts ui.color("Chef node successfully deleted.", :green)
-          rescue Exception => e
-            err_msg ui.color("ERROR DELETING CHEF NODE", :red)
-            err_msg ui.color(e.message, :yellow)
-            err_msg ui.color(e.backtrace, :yellow)
-          end
+          if @node
+            begin
+              destroy_item(Chef::Node, @node.name, "node")
+              puts ui.color("Chef node successfully deleted.", :green)
+            rescue Exception => e
+              err_msg ui.color("ERROR DELETING CHEF NODE", :red)
+              err_msg ui.color(e.message, :yellow)
+              err_msg ui.color(e.backtrace.join("\n"), :yellow)
+            end
 
-          begin
-            destroy_item(Chef::ApiClient, @node.name, "client")
-            puts ui.color("Chef client successfully deleted.", :green)
-          rescue Exception => e
-            err_msg ui.color("ERROR DELETING CHEF CLIENT", :red)
-            err_msg ui.color(e.message, :yellow)
-            err_msg ui.color(e.backtrace, :yellow)
+            begin
+              destroy_item(Chef::ApiClient, @node.name, "client")
+              puts ui.color("Chef client successfully deleted.", :green)
+            rescue Exception => e
+              err_msg ui.color("ERROR DELETING CHEF CLIENT", :red)
+              err_msg ui.color(e.message, :yellow)
+              err_msg ui.color(e.backtrace.join("\n"), :yellow)
+            end
+          else
+            "#{ui.color('Chef node: ' + config[:chef_node_name] +' not found! will destroy instance.', :red)}"
           end
 
           begin
@@ -96,7 +108,7 @@ class Chef
           rescue Exception => e
             err_msg ui.color("ERROR DELETING SOFTLAYER VM. IT'S POSSIBLE YOU ARE STILL BEING BILLED FOR THIS INSTANCE.  PLEASE CONTACT SUPPORT FOR FURTHER ASSISTANCE", :red)
             err_msg ui.color(e.message, :yellow)
-            err_msg ui.color(e.backtrace, :yellow)
+            err_msg ui.color(e.backtrace.join("\n"), :yellow)
           end
         ensure
           unless err_msg.empty?

@@ -100,8 +100,6 @@ class Chef
   end
 end
 
-||||||| merged common ancestors
-=======
 #
 # Author:: Matt Eldridge (<matt.eldridge@us.ibm.com>)
 # © Copyright IBM Corporation 2014.
