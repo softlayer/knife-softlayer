@@ -85,6 +85,11 @@ class Chef
         :description => 'Flag to be passed when the compute instance should have no public facing network interface.',
         :boolean => true
 
+      option :use_private_network,
+        :long => '--use-private-network',
+        :description => 'Flag to be passwed when bootstrap is preferred over the private network.',
+        :boolean => true
+
       option :from_file,
              :long => '--from-file PATH',
              :description => 'Path to JSON file containing arguments for provisoning and bootstrap.'
@@ -297,7 +302,7 @@ class Chef
 
         puts ui.color("Launching SoftLayer VM, this may take a few minutes.", :green)
         instance = connection.servers.create(opts)
-        if config[:private_network_only]
+        if config[:private_network_only] || config[:use_private_network]
           instance.ssh_ip_address = Proc.new {|server| server.private_ip_address }
         end
         progress Proc.new { instance.wait_for { ready? and sshable? } }
