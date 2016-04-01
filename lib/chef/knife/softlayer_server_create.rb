@@ -244,6 +244,11 @@ class Chef
                Chef::Config[:knife][:hints][name] = path ? JSON.parse(::File.read(path)) : Hash.new
              }
 
+      option :user_data,
+             :short => "-u USERDATA",
+             :long => "--user-data USERDATA",
+             :description => "Optional user data to pass on to SoftLayer compute instance"
+
       require 'chef/knife/bootstrap'
       # Make the base bootstrap options available on topo bootstrap
       self.options = (Chef::Knife::Bootstrap.options).merge(self.options)
@@ -283,7 +288,8 @@ class Chef
             :private_vlan => nil,
             :image_id => nil,
             :private_network_only => nil,
-            #:tags => nil
+            #:tags => nil,
+            :user_data => nil
         }
 
 
