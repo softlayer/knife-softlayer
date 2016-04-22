@@ -306,6 +306,10 @@ class Chef
           instance.ssh_ip_address = Proc.new {|server| server.private_ip_address }
         end
         progress Proc.new { instance.wait_for { ready? and sshable? } }
+        # now that it's ready, wait for the reboot...
+        progress Proc.new { instance.wait_for { !ready? } }
+        # now that it's been rebooted, wait for it to be ready again
+        progress Proc.new { instance.wait_for { ready? and sshable? } }
         putc("\n")
 
         if config[:tags]
