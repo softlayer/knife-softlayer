@@ -38,7 +38,8 @@ user@localhost> cat /Users/user/bootstrap.json
   "run-list": "recipe[redis],recipe[rbenv],recipe[apt]",
   "ssh-keys": "73148",
   "identity-file": "/Users/user/.ssh/my_softlayer_key_rsa",
-  "image-id": "23f7f05f-3657-4330-8772-329ed2e816bc"
+  "image-id": "23f7f05f-3657-4330-8772-329ed2e816bc",
+  "user_data": "first_boot=disabled"
 }
 
 user@localhost> knife softlayer server create --from-file /Users/user/bootstrap.json
