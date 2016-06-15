@@ -60,7 +60,7 @@ class Chef
         :long => '--network-interface-speed VALUE',
         :short => '-n VALUE',
         :description => 'The maximum speed of the public NIC available to the instance.',
-        :default => 10
+        :default => nil
 
       option :bill_monthly,
         :long => '--bill-monthly',
@@ -305,7 +305,6 @@ class Chef
         opts[:network_components] = [ {:speed => config[:nic]} ] if !!config[:nic]
 
         opts.delete_if { |k,v| v.nil? }
-
         puts ui.color("Launching SoftLayer VM, this may take a few minutes.", :green)
         instance = connection.servers.create(opts)
         if config[:private_network_only] || config[:use_private_network]
