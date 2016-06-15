@@ -138,7 +138,7 @@ class Chef
               :short => "-S KEY",
               :long => "--ssh-keys KEY",
               :description => "The ssh keys for the SoftLayer Virtual Guest environment. Accepts a space separated list of integers.",
-              :proc => Proc.new { |ssh_keys| ssh_keys.split(' ').map { |k| {:id => k}}  }
+              :proc => Proc.new { |ssh_keys| ssh_keys.split(' ')  }
 
       option :ssh_port,
              :short => "-p PORT",
