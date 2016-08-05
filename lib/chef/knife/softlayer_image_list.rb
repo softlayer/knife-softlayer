@@ -17,8 +17,8 @@ class Chef
 
       def run
         $stdout.sync = true
-        table_data = connection(:compute).images.map { |i| {:id => i.id, :name => i.name, :access => i.public? ? 'PUBLIC' : 'PRIVATE' } }
-        puts Formatador.display_table(table_data, [:id, :access, :name,])
+        table_data = connection(:compute).images.map { |i| {:id => i.id, :name => i.name, :access => i.public? ? 'PUBLIC' : 'PRIVATE', :account => i.account_id } }
+        puts Formatador.display_table(table_data, [:id, :access, :name, :account])
       end
 
     end
