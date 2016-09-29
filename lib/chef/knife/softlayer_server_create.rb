@@ -60,7 +60,7 @@ class Chef
         :long => '--network-interface-speed VALUE',
         :short => '-n VALUE',
         :description => 'The maximum speed of the public NIC available to the instance.',
-        :default => nil
+        :default => 10
 
       option :bill_monthly,
         :long => '--bill-monthly',
@@ -302,7 +302,7 @@ class Chef
         end
 
         # FIXME: make the above deal with nested opts and get rid of this one-off
-        opts[:network_components] = [ {:speed => config[:nic]} ] if !!config[:nic]
+        opts[:network_components] = [ {:maxSpeed => config[:nic]} ] if !!config[:nic]
 
         opts.delete_if { |k,v| v.nil? }
         puts ui.color("Launching SoftLayer VM, this may take a few minutes.", :green)
@@ -454,5 +454,3 @@ class Chef
     end
   end
 end
-
-
