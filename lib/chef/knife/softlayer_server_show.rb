@@ -22,7 +22,6 @@ class Chef
         $stdout.sync = false
         server = connection.servers.get(name_args[0])
 
-        pp server.ready?
         puts "#{ui.color("ID:", :green)} #{server.id}"
         puts "#{ui.color("Name:", :green)} #{server.fqdn}"
         puts "#{ui.color("CPU:", :green)} #{server.cpu}"
