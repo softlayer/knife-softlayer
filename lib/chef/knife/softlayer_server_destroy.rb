@@ -44,44 +44,38 @@ class Chef
         puts ui.color("Decommissioning SoftLayer VM, this may take a few minutes.", :green)
         connection.servers.each do |server|
           if config[:ip_address]
-            if server.public_ip_address == config[:ip_address] && !config[:use_private_network]
-              @instance = server
-              break
-            elsif server.private_ip_address == config[:ip_address] && config[:use_private_network]
+            if server.public_ip_address == config[:ip_address] || server.private_ip_address == config[:ip_address]
               @instance = server
               break
             end
           elsif config[:chef_node_name]
-            if server.fqdn == config[:chef_node_name] && !config[:use_private_network]
-              config[:ip_address] = server.public_ip_address
-              @instance = server
-              break
-            elsif server.fqdn == config[:chef_node_name] && config[:use_private_network]
-              config[:ip_address] = server.private_ip_address
+            if server.fqdn == config[:chef_node_name]
+              config[:ip_address] = if config[:use_private_network]
+                                      server.private_ip_address
+                                    else
+                                      server.public_ip_address
+                                    end
               @instance = server
               break
             end
           elsif  arg = name_args[0]
             if arg =~ /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/ # ipv4
-              if server.public_ip_address == arg && !config[:use_private_network]
-                @instance = server
-                break
-              elsif server.private_ip_address == arg && config[:use_private_network]
+              if server.public_ip_address == arg || server.private_ip_address == arg
                 @instance = server
                 break
               end
             elsif arg =~ /^(?:[A-F0-9]{1,4}:){7}[A-F0-9]{1,4}$/ # ipv6
-              if server.public_ip_address == arg && !config[:use_private_network]
-                @instance = server
-                break
-              elsif server.private_ip_address == arg && config[:use_private_network]
+              if server.public_ip_address == arg || server.private_ip_address == arg
                 @instance = server
                 break
               end
             else
               if server.fqdn == arg
-                config[:ip_address] = server.public_ip_address unless config[:use_private_network]
-                config[:ip_address] = server.private_ip_address if config[:use_private_network]
+                config[:ip_address] = if config[:use_private_network]
+                                        server.private_ip_address
+                                      else
+                                        server.public_ip_address
+                                      end
                 @instance = server
                 break
               end
