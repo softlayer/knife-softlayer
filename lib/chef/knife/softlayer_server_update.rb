@@ -19,8 +19,8 @@ class Chef
              :description => "update cpu count"
 
       option :time,
-             :long => "--time COUNT",
-             :description => "update cpu count",
+             :long => "--time Time",
+             :description => "set time when to make a change",
              :default => Time.now
 
       ##
