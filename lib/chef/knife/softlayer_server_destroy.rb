@@ -92,6 +92,19 @@ class Chef
         end
 
         begin
+          puts "#{ui.color("ID:", :green)} #{@instance.id}"
+          puts "#{ui.color("Name:", :green)} #{@instance.fqdn}"
+          puts "#{ui.color("CPU:", :green)} #{@instance.cpu}"
+          puts "#{ui.color("RAM:", :green)} #{@instance.ram}"
+          puts "#{ui.color("Datacenter:", :green)} #{@instance.datacenter}"
+          puts "#{ui.color("Public IP:", :green)} #{@instance.public_ip_address}"
+          puts "#{ui.color("Public Speed:", :green)} #{@instance.network_components[0].speed}"
+          puts "#{ui.color("Private IP:", :green)} #{@instance.private_ip_address}"
+          puts "#{ui.color("Private Speed:", :green)} #{@instance.network_components[1].speed}"
+          puts "#{ui.color("Status:", :green)} #{@instance.state}"
+          puts "\n"
+          confirm("Do you really want to destroy this server")
+
           if !@node.nil?
             begin
               destroy_item(Chef::Node, @node.name, "node")
