@@ -60,7 +60,7 @@ class Chef
         :long => '--network-interface-speed VALUE',
         :short => '-n VALUE',
         :description => 'The maximum speed of the public NIC available to the instance.',
-        :default => nil
+        :default => 10
 
       option :bill_monthly,
         :long => '--bill-monthly',
@@ -87,7 +87,7 @@ class Chef
 
       option :use_private_network,
         :long => '--use-private-network',
-        :description => 'Flag to be passwed when bootstrap is preferred over the private network.',
+        :description => 'Flag to be passed when bootstrap is preferred over the private network.',
         :boolean => true
 
       option :from_file,
@@ -454,5 +454,3 @@ class Chef
     end
   end
 end
-
-

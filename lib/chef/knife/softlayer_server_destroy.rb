@@ -30,6 +30,10 @@ class Chef
         :short => "-I",
         :description => "Find the VM and node to destroy by its public IP address."
 
+      option :use_private_network,
+        :long => '--use-private-network',
+        :description => 'Look for private IP',
+        :boolean => true
       ##
       # Run the procedure to destroy a SoftLayer VM and clean up its Chef node and client.
       # @return [nil]
@@ -40,39 +44,47 @@ class Chef
         puts ui.color("Decommissioning SoftLayer VM, this may take a few minutes.", :green)
         connection.servers.each do |server|
           if config[:ip_address]
-            if server.public_ip_address == config[:ip_address]
+            if server.public_ip_address == config[:ip_address] || server.private_ip_address == config[:ip_address]
               @instance = server
               break
             end
           elsif config[:chef_node_name]
-            if server.name == config[:chef_node_name]
-              config[:ip_address] = server.public_ip_address
+            if server.fqdn == config[:chef_node_name]
+              config[:ip_address] = if config[:use_private_network]
+                                      server.private_ip_address
+                                    else
+                                      server.public_ip_address
+                                    end
               @instance = server
               break
             end
           elsif  arg = name_args[0]
             if arg =~ /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/ # ipv4
-              if server.public_ip_address == arg
+              if server.public_ip_address == arg || server.private_ip_address == arg
                 @instance = server
                 break
               end
             elsif arg =~ /^(?:[A-F0-9]{1,4}:){7}[A-F0-9]{1,4}$/ # ipv6
-              if server.public_ip_address == arg
+              if server.public_ip_address == arg || server.private_ip_address == arg
                 @instance = server
                 break
               end
             else
-              if server.name == arg
-                config[:ip_address] = server.public_ip_address
+              if server.fqdn == arg
+                config[:ip_address] = if config[:use_private_network]
+                                        server.private_ip_address
+                                      else
+                                        server.public_ip_address
+                                      end
                 @instance = server
                 break
               end
             end
-          end              
+          end
         end
         @instance.nil? and raise "#{ui.color('VM instance with IP: ' + (config[:ip_address].to_s) +' not found!', :red)}"
         @chef = Chef::Search::Query.new
-        @chef.search('node', "name:#{@instance.name}") do |node|
+        @chef.search('node', "name:#{@instance.fqdn}") do |node|
           begin
             @node = node               
           rescue
@@ -80,7 +92,20 @@ class Chef
         end
 
         begin
-          if @node
+          puts "#{ui.color("ID:", :green)} #{@instance.id}"
+          puts "#{ui.color("Name:", :green)} #{@instance.fqdn}"
+          puts "#{ui.color("CPU:", :green)} #{@instance.cpu}"
+          puts "#{ui.color("RAM:", :green)} #{@instance.ram}"
+          puts "#{ui.color("Datacenter:", :green)} #{@instance.datacenter}"
+          puts "#{ui.color("Public IP:", :green)} #{@instance.public_ip_address}"
+          puts "#{ui.color("Public Speed:", :green)} #{@instance.network_components[0].speed}"
+          puts "#{ui.color("Private IP:", :green)} #{@instance.private_ip_address}"
+          puts "#{ui.color("Private Speed:", :green)} #{@instance.network_components[1].speed}"
+          puts "#{ui.color("Status:", :green)} #{@instance.state}"
+          puts "\n"
+          confirm("Do you really want to destroy this server")
+
+          if !@node.nil?
             begin
               destroy_item(Chef::Node, @node.name, "node")
               puts ui.color("Chef node successfully deleted.", :green)
@@ -99,7 +124,7 @@ class Chef
               err_msg ui.color(e.backtrace.join("\n"), :yellow)
             end
           else
-            "#{ui.color('Chef node: ' + config[:chef_node_name] +' not found! will destroy instance.', :red)}"
+            "#{ui.color("Chef node: #{config[:chef_node_name]} not found! will destroy instance.", :red)}"
           end
 
           begin
@@ -142,5 +167,3 @@ class Chef
     end
   end
 end
-
-
