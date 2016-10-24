@@ -87,7 +87,7 @@ class Chef
 
       option :use_private_network,
         :long => '--use-private-network',
-        :description => 'Flag to be passwed when bootstrap is preferred over the private network.',
+        :description => 'Flag to be passed when bootstrap is preferred over the private network.',
         :boolean => true
 
       option :from_file,
@@ -454,5 +454,3 @@ class Chef
     end
   end
 end
-
-
