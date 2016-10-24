@@ -1,6 +1,4 @@
 require 'chef/knife/softlayer_base'
-require 'chef/search/query'
-require 'chef/api_client'
 
 class Chef
   class Knife
