@@ -16,6 +16,12 @@ class Chef
              :long => "--cpu COUNT",
              :description => "update cpu count"
 
+      option :nic,
+             :long => '--network-interface-speed VALUE',
+             :short => '-n VALUE',
+             :description => 'The maximum speed of the public NIC available to the instance.',
+             :default => nil
+
       option :time,
              :long => "--time Time",
              :description => "set time when to make a change",
@@ -33,13 +39,16 @@ class Chef
 
         new_attributes = Mash.new
 
-        new_attributes[:guest_core] = config[:cpu] unless config[:cpu].nil?
-        new_attributes[:ram] = config[:ram] unless config[:ram].nil?
+        new_attributes[:guest_core] = config[:cpu] if !!config[:cpu]
+        new_attributes[:network_components] = [ {"speed" => config[:nic]} ] if !!config[:nic]
+        new_attributes[:ram] = config[:ram] if !!config[:ram]
         new_attributes[:time] = config[:time]
 
         $stdout.sync = true
         server = connection.servers.get(name_args[0])
-        server.update(new_attributes)
+        if config[:guest_core] || config[:ram] || config[:nic]
+          server.update(new_attributes)
+        end
         sleep 9
 
         progress Proc.new { server.wait_for { ready? } }
