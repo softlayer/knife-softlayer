@@ -252,7 +252,7 @@ class Chef
       option :wait_for_timeout,
              :short => "-t VALUE",
              :long => "--wait-for-timeout VALUE",
-             :description => "Timeout for provisioning proccess"
+             :description => "Timeout for provisioning proccess",
              :default => 600
 
       require 'chef/knife/bootstrap'
