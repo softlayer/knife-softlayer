@@ -248,12 +248,12 @@ class Chef
              :short => "-u USERDATA",
              :long => "--user-data USERDATA",
              :description => "Optional user data to pass on to SoftLayer compute instance"
-      
+
       option :wait_for_timeout,
              :short => "-t VALUE",
-	     :long => "--wait-for-timeout VALUE",
+             :long => "--wait-for-timeout VALUE",
              :description => "Timeout for provisioning proccess"
-
+             :default => 600
 
       require 'chef/knife/bootstrap'
       # Make the base bootstrap options available on topo bootstrap
@@ -460,5 +460,3 @@ class Chef
     end
   end
 end
-
-
