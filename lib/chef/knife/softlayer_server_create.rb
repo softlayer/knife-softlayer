@@ -249,6 +249,12 @@ class Chef
              :long => "--user-data USERDATA",
              :description => "Optional user data to pass on to SoftLayer compute instance"
 
+      option :wait_for_timeout,
+             :short => "-t VALUE",
+             :long => "--wait-for-timeout VALUE",
+             :description => "Timeout for provisioning proccess",
+             :default => 600
+
       require 'chef/knife/bootstrap'
       # Make the base bootstrap options available on topo bootstrap
       self.options = (Chef::Knife::Bootstrap.options).merge(self.options)
@@ -310,7 +316,7 @@ class Chef
         if config[:private_network_only] || config[:use_private_network]
           instance.ssh_ip_address = Proc.new {|server| server.private_ip_address }
         end
-        progress Proc.new { instance.wait_for { ready? and sshable? } }
+        progress Proc.new { instance.wait_for(timeout=config[:wait_for_timeout]) { ready? and sshable? } }
         putc("\n")
 
         if config[:tags]
@@ -454,5 +460,3 @@ class Chef
     end
   end
 end
-
-
