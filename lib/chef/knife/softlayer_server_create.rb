@@ -316,7 +316,7 @@ class Chef
         if config[:private_network_only] || config[:use_private_network]
           instance.ssh_ip_address = Proc.new {|server| server.private_ip_address }
         end
-	progress Proc.new { instance.wait_for(timeout=config[:wait_for_timeout].chomp.to_i) { ready? and sshable? } }
+	progress Proc.new { instance.wait_for(timeout=config[:wait_for_timeout].to_i) { ready? and sshable? } }
         putc("\n")
 
         if config[:tags]
