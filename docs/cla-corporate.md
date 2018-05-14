@@ -2,7 +2,7 @@
 #### International Business machines, Inc.
 #####Software Grant and Corporate Contributor License Agreement ("Agreement")
 
-http://www.github.org/softlayer/knife-softlayer/
+http://github.com/softlayer/knife-softlayer
 
 
 Thank you for your interest in IBM’s knife-softlayer project (“the
